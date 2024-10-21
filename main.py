@@ -8,7 +8,7 @@ import utils as ut
 
 client = OpenAI(
   base_url="https://api.groq.com/openai/v1",
-  api_key=os.environ.get("GROQ_API_KEY"),
+  api_key=os.environ.get("GROQ_API_KEY"), #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
 )
 
 def load_model(filename):
@@ -119,9 +119,10 @@ def explain_prediction(probability, input_dict, surname):
 
       Don't mention the probability of churning, or the machine learning model, or say
       anything like "Based on the machine learning model's prediction 
-      and the top 10 most important features", just explain the prediction.
+      and the top 10 most important features", just explain the prediction. don't say here is a possible explanation based on ... just explain!!
 
     No bullet points just short paragraphs!
+    don't tell us it's credit score
 
     """
   print("Explanation Prompt: ", prompt)
