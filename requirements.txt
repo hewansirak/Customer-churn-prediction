@@ -5,3 +5,6 @@ plotly
 openai
 xgboost
 scikit-learn
+fastapi
+uvicorn
+numpy
