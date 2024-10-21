@@ -212,6 +212,6 @@ if selected_customer_option:
 
   explanation = explain_prediction(avg_probability, input_dict, selected_customer['Surname'])
 
-  st.markodown("---")
+  st.markdown("---")
   st.subheader("Explanation of Prediction")
   st.markdown(explanation)
