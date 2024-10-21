@@ -53,7 +53,7 @@ def make_predictions(input_df, input_dict):
     "Random Forest": random_forest_model.predict_proba(input_df)[0][1],
     "K-Nearest Neighbors": knn_model.predict_proba(input_df)[0][1],
   }
-  
+
   avg_probability = np.mean(list(probabilities.values()))
 
   st.markdown("### Model Probabilities")
@@ -61,6 +61,71 @@ def make_predictions(input_df, input_dict):
     st.markdown(f"{model} {prob}")
   st.write(f"Average Probability: {avg_probability}")
 
+  return avg_probability
+
+def explain_prediction(probability, input_dict, surname):
+
+  prompt = f""" You are an expert data scientist at a bank, where you 
+    specialize in interpretting and explaining predictions of machine learning models.
+
+    Your machine learning model has predicted that a customer 
+    names {surname} has a {round(probability *100, 1)}% 
+    probability of churning, based on the information provided below.
+
+  Here is the customer's information:
+    {input_dict}
+
+    Here are the machine learning model's top 10 most important features 
+    for predicting churn:
+
+                  Feature | Importance
+        ------------------|---------------
+        NumOfProducts     | 0.323888
+        IsActiveMember    | 0.164146
+        Age               | 0.109550
+        Geography_Germany	| 0.091373
+        Balance	          | 0.052786
+        Geography_France	| 0.046463
+        Gender_Female	    | 0.045283
+        Geography_Spain	  | 0.036855
+        CreditScore	      | 0.035005
+        EstimatedSalary	  | 0.032655
+        HasCrCard	        | 0.031940
+        Tenure	          | 0.030054
+        Gender_Male	      | 0.000000
+
+
+  {pd.set_option('display.max_columns', None)}
+
+  Here are summary statistics for churned customers:
+  {df[df['Exited'] == 1].describe()}
+  Here are summary statistics for non - churned customers:
+  {df[df['Exited'] == 0].describe()}
+
+  - If the customer has over a 4% risk of churning, generate a 3 sentence explanation
+      of why they are at risk of churning.
+      - If the customer has less than a 40% risk of churning, generate a 3 sentence
+      explanation of why they might not be at risk of churning.
+      - Your explanation should be based on the customer's information, the summary
+      statistics of churned and non-churned customers, and the features importances provided.
+
+      Don't mention the probability of churning, or the machine learning model, or say
+      anything like "Based on the machine learning model's prediction 
+      and the top 10 most important features", just explain the prediction.
+
+    """
+  print("Explanation Prompt: ", prompt)
+
+  raw_response = client.chat.completions.create(
+    model="llama-3.2-3b-preview",
+    messages=[{
+          "role": "user",
+          "content": prompt
+      }],
+  )
+
+  return raw_response.choices[0].message.content
+  
 
 st.title("Customer Churn Prediction")
 
@@ -80,65 +145,12 @@ if selected_customer_option:
   selected_customer = df.loc[df["CustomerId"] == selected_customer_id].iloc[0]
   print("Selected Customer", selected_customer)
 
-  def_explain_prediction(probability, input_dict, surname):
-
-   prompt = f""" You are an expert data scientist at a bank, where you specialize in interpretting and explaining predictions of machine learning models.
-
-   Your machine learninf model has predicted that a customer names {surname} has a {round(probablity*100, 1)}% probability of churning, based on the information provided below.
-
-   Here is the customer's information:
-   {input_dict}
-
-   Here are the machine learning model's top 10 most important features for predicting churn:
-
-                  Feature | Importance
-        ------------------|---------------
-        NumOfProducts     | 0.323888
-        IsActiveMember    | 0.164146
-        Age               | 0.109550
-        Geography_Germany	| 0.091373
-        Balance	          | 0.052786
-        Geography_France	| 0.046463
-        Gender_Female	    | 0.045283
-        Geography_Spain	  | 0.036855
-        CreditScore	      | 0.035005
-        EstimatedSalary	  | 0.032655
-        HasCrCard	        | 0.031940
-        Tenure	          | 0.030054
-        Gender_Male	      | 0.000000
 
 
-      {pd.set_option('display.max_columns', None)}
-
-      Here are summary statistics for churned customers:
-      {df[df['Exited'] == 1].describe()}
-
-      Here are summary statistics for non - churned customers:
-      {df[df['Exited'] == 0].describe()}
-
-      - If the customer has over a 4% risk of churning, generate a 3 sentence explanation of why they are at risk of churning.
-      - If the customer has less than a 40% risk of churning, generate a 3 sentence explanation of why they might not be at risk of churning.
-      - Your explanation should be based on the customer's information, the summary statistics of churned and non-churned customers, and the features importances provided.
-
-      Don't mention the probability of churning, or the machine learning model, or say anything like "Based on the machine learning model's prediction anf the top 10 most important features", just explain the prediction.
-
-      """
-
-  print("EXPLANATION PROMPT", prompt)
-
-  raw_response = client.chat.completions.create(
-    model="llama-3.2-3b-preview"
-    messages=[{
-      "role" : "user",
-      "content" : prompt
-    }],
-  )
-  return raw_response.choices[0].message.content
-  
   col1, col2 = st.columns(2)
-  
+
   with col1:
-  
+
     credit_score = st.number_input(
       "Credit Score", 
       min_value=300,
@@ -173,7 +185,7 @@ if selected_customer_option:
       "Balance",
       min_value=0.0,
       value=float(selected_customer["Balance"]))
-    
+
     num_products = st.number_input(
       "Number of Products",
       min_value=1,
@@ -196,5 +208,10 @@ if selected_customer_option:
 
   input_df, input_dict = prepare_input(credit_score, location, gender, age, tenure, balance, num_products, has_credit_card, is_active_member, estimated_salary)
 
-  make_predictions(input_df, input_dict)
+  avg_probability = make_predictions(input_df, input_dict)
 
+  explanation = explain_prediction(avg_probability, input_dict, selected_customer['Surname'])
+
+  st.markodown("---")
+  st.subheader("Explanation of Prediction")
+  st.markdown(explanation)
